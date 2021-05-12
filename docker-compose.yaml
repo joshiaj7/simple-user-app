@@ -1,0 +1,43 @@
+version: "2.4"
+
+networks:
+    default:
+        name: 'user_app_network'
+
+services:
+  user_app:
+    container_name: user_app
+    image: user-app:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - 8080:8080
+    network_mode: host
+    restart: on-failure
+    depends_on:
+      user_db:
+        condition: service_healthy
+    env_file: ./.env 
+  user_db:
+    container_name: user_db
+    image: postgres:13.0-alpine
+    environment:
+        - POSTGRES_USER=${DB_USER:-postgres}
+        - POSTGRES_PASSWORD=${DB_PASSWORD:-password123}
+        - POSTGRES_DB=${DB_NAME:-user_db}
+    ports:
+        - ${DB_PORT:-5432}:5432
+    network_mode: host
+    volumes:
+      - user_db:/var/lib/postgresql/user_db/
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  user_db:
+      

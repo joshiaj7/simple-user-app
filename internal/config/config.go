@@ -40,10 +40,10 @@ func SetupDB() (err error) {
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
-	DB.AutoMigrate(&model.User{}, &model.Token{})
+	DB.AutoMigrate(&model.User{}, &model.UserLogIn{})
 
 	return err
 }

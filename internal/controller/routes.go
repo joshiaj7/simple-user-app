@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/google/uuid"
 	"github.com/joshiaj7/simple-user-app/internal/config"
 	"github.com/joshiaj7/simple-user-app/internal/model"
 	"github.com/joshiaj7/simple-user-app/internal/util"
@@ -8,7 +9,6 @@ import (
 
 	"encoding/json"
 	"net/http"
-	"os/exec"
 )
 
 // SetupRoute to handle routing
@@ -51,7 +51,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 	config.DB.Save(&user)
 
 	view.HTTPResponse(w, 200, "Successfully logged in", nil)
-	return
 }
 
 // logout to logging out from app
@@ -100,12 +99,8 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// generate uuid & create user
-	uuid, err := exec.Command("uuidgen").Output()
-	if err != nil {
-		view.HTTPResponse(w, 500, err.Error(), nil)
-		return
-	}
-	user.UUID = string(uuid[:len(uuid)-2])
+	uuid := uuid.New()
+	user.UUID = uuid.String()
 	user.Password = util.Encrypt([]byte(user.Password))
 	user.IsLoggedIn = true
 	config.DB.Create(&user)
@@ -122,14 +117,14 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get db user data from auth token
-	status, db_user := util.CheckIfLoggedIn(w, r)
+	status, _ := util.CheckIfLoggedIn(w, r)
 	if status == false {
 		return
 	}
 
 	// parse request body
 	decoder := json.NewDecoder(r.Body)
-	var inc_user model.User
+	var inc_user, db_user model.User
 	err := decoder.Decode(&inc_user)
 	if err != nil {
 		view.HTTPResponse(w, 500, err.Error(), nil)
@@ -156,7 +151,11 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 			db_user.Password = enc_pass
 		}
 	}
-	config.DB.Save(&db_user)
+	err = config.DB.Save(&db_user).Error
+	if err != nil {
+		view.HTTPResponse(w, 500, err.Error(), nil)
+		return
+	}
 
 	view.HTTPResponse(w, 200, "User has been updated", db_user)
 }
@@ -181,6 +180,14 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 	if err != nil {
 		view.HTTPResponse(w, 500, err.Error(), nil)
+		return
+	}
+
+	// check if user exists
+	err = config.DB.First(&user, user.ID).Error
+	if err != nil {
+		view.HTTPResponse(w, 404, err.Error(), nil)
+		return
 	}
 
 	// delete user

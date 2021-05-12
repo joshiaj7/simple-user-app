@@ -26,7 +26,7 @@ func Decrypt(data string) string {
 	return string(sDec)
 }
 
-func CheckIfLoggedIn(w http.ResponseWriter, r *http.Request) model.User {
+func CheckIfLoggedIn(w http.ResponseWriter, r *http.Request) (bool, model.User) {
 	auth := r.Header.Get("Authorization")
 
 	if auth == "" {
@@ -37,17 +37,16 @@ func CheckIfLoggedIn(w http.ResponseWriter, r *http.Request) model.User {
 
 	// get user by uuid (bearer)
 	var user model.User
-	err := config.DB.Where("UUID = ?", uuid).First(&user).Error
+	err := config.DB.Where("uuid = ?", uuid).First(&user).Error
 	if err != nil {
-		view.HTTPResponse(w, 404, "User not found", nil)
+		view.HTTPResponse(w, 401, "Unauthorized", nil)
+		return false, user
 	}
 
-	// get user by uuid (bearer)
-	var userLogIn model.UserLogIn
-	config.DB.First(&userLogIn, user.ID)
-	if userLogIn.IsLoggedIn == false {
+	if user.IsLoggedIn == false {
 		view.HTTPResponse(w, 404, "User is not logged in", nil)
+		return false, user
 	}
 
-	return user
+	return true, user
 }

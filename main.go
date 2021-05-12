@@ -12,6 +12,7 @@ func main() {
 	err := config.SetupDB()
 	if err != nil {
 		fmt.Println("Failed to set up DB, error : ", err)
+		return
 	}
 
 	controller.SetupRoute()

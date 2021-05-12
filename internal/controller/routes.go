@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"github.com/joshiaj7/simple-user-app/internal/config"
 	"github.com/joshiaj7/simple-user-app/internal/model"
 	"github.com/joshiaj7/simple-user-app/internal/util"
@@ -28,6 +26,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	// method validation
 	if r.Method != http.MethodPost {
 		view.HTTPResponse(w, 405, "Method is not allowed", nil)
+		return
 	}
 
 	// decode request body
@@ -36,21 +35,23 @@ func login(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 	if err != nil {
 		view.HTTPResponse(w, 500, err.Error(), nil)
+		return
 	}
 
-	// check if user exists
-	err = config.DB.First(&user, user.ID).Error
+	// get user
+	hashed_password := util.Encrypt([]byte(user.Password))
+	err = config.DB.Where("user_name = ? and password = ?", user.UserName, hashed_password).First(&user).Error
 	if err != nil {
-		view.HTTPResponse(w, 404, "Record not found", nil)
+		view.HTTPResponse(w, 401, err.Error(), nil)
+		return
 	}
 
 	// change user isloggedin to true
-	var userLogIn model.UserLogIn
-	config.DB.First(&userLogIn, user.ID)
-	userLogIn.IsLoggedIn = true
-	config.DB.Save(&userLogIn)
+	user.IsLoggedIn = true
+	config.DB.Save(&user)
 
 	view.HTTPResponse(w, 200, "Successfully logged in", nil)
+	return
 }
 
 // logout to logging out from app
@@ -58,20 +59,18 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	// method validation
 	if r.Method != http.MethodPost {
 		view.HTTPResponse(w, 405, "Method is not allowed", nil)
+		return
 	}
 
-	fmt.Println("method clear")
-
 	// get user data from auth header
-	user := util.CheckIfLoggedIn(w, r)
-
-	fmt.Println(user)
+	status, user := util.CheckIfLoggedIn(w, r)
+	if status == false {
+		return
+	}
 
 	// change user IsLoggedIn to false
-	var userLogIn model.UserLogIn
-	config.DB.First(&userLogIn, user.ID)
-	userLogIn.IsLoggedIn = false
-	config.DB.Save(&userLogIn)
+	user.IsLoggedIn = false
+	config.DB.Save(&user)
 
 	view.HTTPResponse(w, 200, "Successfully logged out", nil)
 }
@@ -81,6 +80,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	// method validation
 	if r.Method != http.MethodPost {
 		view.HTTPResponse(w, 405, "Method is not allowed", nil)
+		return
 	}
 
 	// parse request body
@@ -89,23 +89,26 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 	if err != nil {
 		view.HTTPResponse(w, 500, err.Error(), nil)
+		return
+	}
+
+	var existing_users []model.User
+	config.DB.Where("email = ? OR user_name = ?", user.Email, user.UserName).Find(&existing_users)
+	if len(existing_users) > 0 {
+		view.HTTPResponse(w, 403, "User already exist", nil)
+		return
 	}
 
 	// generate uuid & create user
 	uuid, err := exec.Command("uuidgen").Output()
 	if err != nil {
 		view.HTTPResponse(w, 500, err.Error(), nil)
+		return
 	}
 	user.UUID = string(uuid[:len(uuid)-2])
 	user.Password = util.Encrypt([]byte(user.Password))
+	user.IsLoggedIn = true
 	config.DB.Create(&user)
-
-	// create UserLogIn
-	userLogIn := &model.UserLogIn{
-		UserID:     user.ID,
-		IsLoggedIn: true,
-	}
-	config.DB.Create(&userLogIn)
 
 	view.HTTPResponse(w, 200, "Success", user)
 }
@@ -115,17 +118,22 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	// method validation
 	if r.Method != http.MethodPut {
 		view.HTTPResponse(w, 405, "Method is not allowed", nil)
+		return
 	}
 
 	// get db user data from auth token
-	var inc_user, db_user model.User
-	db_user = util.CheckIfLoggedIn(w, r)
+	status, db_user := util.CheckIfLoggedIn(w, r)
+	if status == false {
+		return
+	}
 
 	// parse request body
 	decoder := json.NewDecoder(r.Body)
+	var inc_user model.User
 	err := decoder.Decode(&inc_user)
 	if err != nil {
 		view.HTTPResponse(w, 500, err.Error(), nil)
+		return
 	}
 
 	config.DB.First(&db_user, inc_user.ID)
@@ -158,10 +166,14 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	// check for method
 	if r.Method != http.MethodDelete {
 		view.HTTPResponse(w, 405, "Method is not allowed", nil)
+		return
 	}
 
 	// get user data from auth header
-	_ = util.CheckIfLoggedIn(w, r)
+	status, _ := util.CheckIfLoggedIn(w, r)
+	if status == false {
+		return
+	}
 
 	// parse request body
 	decoder := json.NewDecoder(r.Body)
@@ -171,14 +183,8 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 		view.HTTPResponse(w, 500, err.Error(), nil)
 	}
 
-	fmt.Println("user: ", user)
-
-	// delete user and user loggin
-	var userLogIn model.UserLogIn
-	userLogIn.UserID = user.ID
-
+	// delete user
 	config.DB.Delete(&user, user.ID)
-	config.DB.Delete(&userLogIn, userLogIn.UserID)
 
 	view.HTTPResponse(w, 200, "User has been deleted", nil)
 }
@@ -188,10 +194,14 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	// check for method
 	if r.Method != http.MethodGet {
 		view.HTTPResponse(w, 405, "Method is not allowed", nil)
+		return
 	}
 
 	// get user data from auth header
-	_ = util.CheckIfLoggedIn(w, r)
+	status, _ := util.CheckIfLoggedIn(w, r)
+	if status == false {
+		return
+	}
 
 	// fetch all user data
 	var users []model.User

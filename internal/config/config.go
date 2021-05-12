@@ -43,7 +43,7 @@ func SetupDB() (err error) {
 		fmt.Println(err)
 	}
 
-	DB.AutoMigrate(&model.User{}, &model.UserLogIn{})
+	DB.AutoMigrate(&model.User{})
 
 	return err
 }

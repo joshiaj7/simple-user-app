@@ -10,9 +10,3 @@ type User struct {
 	Password   string `json:"password"`
 	IsLoggedIn bool   `json:"is_logged_in"`
 }
-
-// UserLogIn is table model for user login activity
-type UserLogIn struct {
-	UserID     uint `gorm:"primaryKey" json:"user_id"`
-	IsLoggedIn bool `json:"is_logged_in"`
-}

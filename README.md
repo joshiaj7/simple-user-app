@@ -23,10 +23,15 @@ cd simple-user-app
 
 3. Run the app.
 
-Using docker compose
+Using docker compose is recommended
 ```sh
 go mod vendor
 docker-compose up --build
+```
+
+Alternatively, you can just run the main.go
+```sh
+go run main.go
 ```
 
 ## How to Use
@@ -39,7 +44,7 @@ Before we start, please refer to the following available endpoints in this appli
 | /get       | GET    | No                    | Yes             | Get a list of existing users               |
 | /update    | PUT    | Yes                   | Yes             | Update user data by its user id            |
 | /delete    | DELETE | Yes                   | Yes             | Delete a user by its user id               |
-| /login     | POST   | Yes                   | No              | Log in to app using user_name and password |
+| /login     | POST   | Yes                   | No              | Log in to app using user name and password |
 | /logout    | POST   | No                    | Yes             | Log out from app                           |
 
 

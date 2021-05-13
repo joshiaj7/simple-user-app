@@ -65,6 +65,7 @@ Create request body example:
 You can find your uuid from the response once you created a new user. We use uuid as bearer token to show that you are currently logged in.
 
 3. Try other APIs!
+
 Try `/update`, `/delete`, and `/get`
 
 Update request body example:
@@ -86,6 +87,7 @@ Delete request body example:
 ```
 
 4. After you finished, log out from the app
+
 Once you logged out, you can't perform update, delete, and get user. Please log in if you want to perform these actions.
 
 Log in request body example:

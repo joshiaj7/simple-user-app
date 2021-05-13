@@ -61,6 +61,7 @@ Create request body example:
 ```
 
 2. Use your uuid as bearer token
+
 You can find your uuid from the response once you created a new user. We use uuid as bearer token to show that you are currently logged in.
 
 3. Try other APIs!
